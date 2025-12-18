@@ -82,45 +82,93 @@ def prediction_thread():
             else:
                 svm_label = enc.inverse_transform([np.argmax(svm_probs)])[0]
 
-# Start prediction thread
-thread = threading.Thread(target=prediction_thread, daemon=True)
-thread.start()
+def predict(dataFilePath, bestModelPath):
+    """
+    dataFilePath: path to folder containing images
+    bestModelPath: path to the trained model (can be KNN or SVM saved with joblib)
+    
+    Returns: a list of predictions (labels) for all images in the folder
+    """
 
-# Open webcam (change index if needed)
-cap = cv2.VideoCapture(1)
-if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+    # Load feature extractor (ResNet50 without top)
+    base_model = tf.keras.applications.ResNet50(
+        weights="imagenet",
+        include_top=False,
+        input_shape=(224, 224, 3)
+    )
+    x = base_model.output
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    feature_extractor = tf.keras.models.Model(inputs=base_model.input, outputs=x)
+    feature_extractor.trainable = False
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Can't receive frame. Exiting ...")
-        break
+    # Load the trained model (KNN or SVM) and scaler + label encoder
+    model_dict = joblib.load("models/svm_modedl.pkl")  # expects a dict: {"model":..., "scaler":..., "encoder":...}
+    svm = joblib.load(os.path.join(bestModelPath , "svm_model.pkl"))
+    enc = joblib.load(os.path.join(bestModelPath, "label_model.pkl"))
+    scaler = joblib.load( os.path.join(bestModelPath ,"scaler_model.pkl"))
 
-    lock.acquire()
-    current_frame = frame.copy()
-    lock.release()
+    predictions = []
 
-    h, w, _ = frame.shape
-    x1 = w // 2 - BOX_SIZE // 2
-    y1 = h // 2 - BOX_SIZE // 2
-    x2 = x1 + BOX_SIZE
-    y2 = y1 + BOX_SIZE
+    # Iterate over images in folder
+    for filename in os.listdir(dataFilePath):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+            img_path = os.path.join(dataFilePath, filename)
+            
+            # Load image and preprocess
+            img = tf.keras.image.load_img(img_path, target_size=(224, 224))
+            img_array = tf.keras.image.img_to_array(img)
+            img_array = np.expand_dims(img_array, axis=0)
+            img_array = tf.keras.applications.resnet50.preprocess_input(img_array)
 
-    # Draw green box in the center
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Extract features
+            features = feature_extractor.predict(img_array, verbose=0).flatten()
+            features_scaled = scaler.transform([features])  # scale features
 
-    # Display predictions
-    cv2.putText(frame, f"KNN: {knn_label}", (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.putText(frame, f"SVM: {svm_label}", (10, 70),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            # Predict label
+            pred_label = enc.inverse_transform(svm.predict(features_scaled))[0]
+            predictions.append(pred_label)
 
-    cv2.imshow('Camera', frame)
+    return predictions
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+# # Start prediction thread
+# thread = threading.Thread(target=prediction_thread, daemon=True)
+# thread.start()
 
-cap.release()
-cv2.destroyAllWindows()
+# # Open webcam (change index if needed)
+# cap = cv2.VideoCapture(1)
+# if not cap.isOpened():
+#     print("Cannot open camera")
+#     exit()
+
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         print("Can't receive frame. Exiting ...")
+#         break
+
+#     lock.acquire()
+#     current_frame = frame.copy()
+#     lock.release()
+
+#     h, w, _ = frame.shape
+#     x1 = w // 2 - BOX_SIZE // 2
+#     y1 = h // 2 - BOX_SIZE // 2
+#     x2 = x1 + BOX_SIZE
+#     y2 = y1 + BOX_SIZE
+
+#     # Draw green box in the center
+#     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+#     # Display predictions
+#     cv2.putText(frame, f"KNN: {knn_label}", (10, 30),
+#                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+#     cv2.putText(frame, f"SVM: {svm_label}", (10, 70),
+#                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+#     cv2.imshow('Camera', frame)
+
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+
+# cap.release()
+# cv2.destroyAllWindows()
