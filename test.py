@@ -130,45 +130,45 @@ def predict(dataFilePath, bestModelPath):
 
     return predictions
 
-# # Start prediction thread
-# thread = threading.Thread(target=prediction_thread, daemon=True)
-# thread.start()
+# Start prediction thread
+thread = threading.Thread(target=prediction_thread, daemon=True)
+thread.start()
 
-# # Open webcam (change index if needed)
-# cap = cv2.VideoCapture(1)
-# if not cap.isOpened():
-#     print("Cannot open camera")
-#     exit()
+# Open webcam (change index if needed)
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("Cannot open camera")
+    exit()
 
-# while True:
-#     ret, frame = cap.read()
-#     if not ret:
-#         print("Can't receive frame. Exiting ...")
-#         break
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Can't receive frame. Exiting ...")
+        break
 
-#     lock.acquire()
-#     current_frame = frame.copy()
-#     lock.release()
+    lock.acquire()
+    current_frame = frame.copy()
+    lock.release()
 
-#     h, w, _ = frame.shape
-#     x1 = w // 2 - BOX_SIZE // 2
-#     y1 = h // 2 - BOX_SIZE // 2
-#     x2 = x1 + BOX_SIZE
-#     y2 = y1 + BOX_SIZE
+    h, w, _ = frame.shape
+    x1 = w // 2 - BOX_SIZE // 2
+    y1 = h // 2 - BOX_SIZE // 2
+    x2 = x1 + BOX_SIZE
+    y2 = y1 + BOX_SIZE
 
-#     # Draw green box in the center
-#     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    # Draw green box in the center
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-#     # Display predictions
-#     cv2.putText(frame, f"KNN: {knn_label}", (10, 30),
-#                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-#     cv2.putText(frame, f"SVM: {svm_label}", (10, 70),
-#                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    # Display predictions
+    cv2.putText(frame, f"KNN: {knn_label}", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    cv2.putText(frame, f"SVM: {svm_label}", (10, 70),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-#     cv2.imshow('Camera', frame)
+    cv2.imshow('Camera', frame)
 
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-# cap.release()
-# cv2.destroyAllWindows()
+cap.release()
+cv2.destroyAllWindows()
