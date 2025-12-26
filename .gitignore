@@ -2,3 +2,4 @@ venv/
 dataset/
 augmented_dataset/
 split_data/
+sample/
